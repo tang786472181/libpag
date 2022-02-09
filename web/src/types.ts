@@ -4,7 +4,11 @@ import { PAGFile } from './pag-file';
 import { PAGImage } from './pag-image';
 import { PAGSurface } from './pag-surface';
 import { WebAssemblyQueue } from './utils/queue';
+/* #if _WECHAT 
+import { VideoReader } from './core/wechat-video-reader';
+//#else */
 import { VideoReader } from './core/video-reader';
+// #endif
 import { ScalerContext } from './core/scaler-context';
 import { PAGView } from './pag-view';
 import { PAGFont } from './pag-font';

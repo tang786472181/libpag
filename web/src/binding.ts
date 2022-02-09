@@ -7,7 +7,11 @@ import { PAGView } from './pag-view';
 import { PAGFont } from './pag-font';
 import { PAGLayer } from './pag-layer';
 import { PAGComposition } from './pag-composition';
+/* #if _WECHAT 
+import { VideoReader } from './core/wechat-video-reader';
+//#else */
 import { VideoReader } from './core/video-reader';
+// #endif
 import { ScalerContext } from './core/scaler-context';
 import { WebMask } from './core/web-mask';
 import { NativeImage } from './core/native-image';
