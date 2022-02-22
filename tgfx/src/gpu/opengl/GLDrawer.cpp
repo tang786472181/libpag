@@ -48,7 +48,7 @@ static AttribLayout GetAttribLayout(ShaderVar::Type type) {
 }
 
 static bool isDrawArgsValid(const DrawArgs& args) {
-  return args.context != nullptr && args.renderTarget != nullptr && !args.rectToDraw.isEmpty();
+  return args.context != nullptr && args.renderTarget != nullptr;
 }
 
 static void ComputeRecycleKey(BytesKey* recycleKey) {
@@ -229,6 +229,8 @@ void GLDrawer::draw(DrawArgs args, std::unique_ptr<GLDrawOp> op) const {
     gl->bindBuffer(GL::ELEMENT_ARRAY_BUFFER, indexBuffer->bufferID());
     gl->drawElements(GL::TRIANGLES, static_cast<int>(indexBuffer->length()), GL::UNSIGNED_SHORT, 0);
     gl->bindBuffer(GL::ELEMENT_ARRAY_BUFFER, 0);
+  } else if (vertices.size() > 4) {
+    gl->drawArrays(GL::TRIANGLES, 0, vertices.size());
   } else {
     gl->drawArrays(GL::TRIANGLE_STRIP, 0, 4);
   }

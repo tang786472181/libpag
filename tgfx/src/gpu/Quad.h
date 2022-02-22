@@ -18,34 +18,24 @@
 
 #pragma once
 
-#include <utility>
-
-#include "GLDrawer.h"
-
-#include "GLBuffer.h"
-#include "gpu/Quad.h"
+#include "core/Matrix.h"
+#include "core/Rect.h"
 
 namespace tgfx {
-class GLFillRectOp : public GLDrawOp {
+class Quad {
  public:
-  static std::unique_ptr<GLFillRectOp> Make(const Rect& rect, const Matrix& matrix);
+  static Quad MakeFromRect(const Rect& rect, const Matrix& matrix);
 
-  static std::unique_ptr<GLFillRectOp> Make(const std::vector<Rect>& rects,
-                                            const std::vector<Matrix>& matrices, const std::vector<Matrix>& localMatrices);
-
-  std::unique_ptr<GeometryProcessor> getGeometryProcessor(const DrawArgs& args) override;
-
-  std::vector<float> vertices(const DrawArgs& args) override;
-
-  std::shared_ptr<GLBuffer> getIndexBuffer(const DrawArgs& args) override;
-
- private:
-  explicit GLFillRectOp(std::vector<Rect> rects, std::vector<Matrix> matrices, std::vector<Matrix> localMatrices)
-      : rects(std::move(rects)), matrices(std::move(matrices)), localMatrices(std::move(localMatrices)) {
+  Point point(size_t i) const {
+    return points[i];
   }
 
-  std::vector<Rect> rects;
-  std::vector<Matrix> matrices;
-  std::vector<Matrix> localMatrices;
+  Rect bounds() const;
+
+ private:
+  explicit Quad(std::vector<Point> points) : points(std::move(points)) {
+  }
+
+  std::vector<Point> points;
 };
 }  // namespace tgfx

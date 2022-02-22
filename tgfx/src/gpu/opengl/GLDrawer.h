@@ -48,6 +48,22 @@ class GLDrawOp {
   virtual std::vector<float> vertices(const DrawArgs& args) = 0;
 
   virtual std::shared_ptr<GLBuffer> getIndexBuffer(const DrawArgs& args) = 0;
+
+  const Rect& bounds() const {
+    return _bounds;
+  }
+
+ protected:
+  void setBounds(Rect bounds) {
+    _bounds = bounds;
+  }
+
+  void setTransformedBounds(const Rect& srcBounds, const Matrix& matrix) {
+    _bounds = matrix.mapRect(srcBounds);
+  }
+
+ private:
+  Rect _bounds = Rect::MakeEmpty();
 };
 
 class GLDrawer : public Resource {

@@ -134,7 +134,8 @@ void GLCanvas::drawTexture(const Texture* texture, const RGBAAALayout* layout, c
   if (processor == nullptr) {
     return;
   }
-  draw(clippedLocalQuad, clippedDeviceQuad, GLFillRectOp::Make(), std::move(processor),
+  draw(clippedLocalQuad, clippedDeviceQuad, GLFillRectOp::Make(clippedLocalQuad, getViewMatrix()),
+       std::move(processor),
        TextureMaskFragmentProcessor::MakeUseLocalCoord(mask, Matrix::I(), inverted), true);
 }
 
@@ -155,9 +156,10 @@ void GLCanvas::drawPath(const Path& path, const Paint& paint) {
   fillPath(strokePath, shader.get());
 }
 
-static std::unique_ptr<GLDrawOp> MakeSimplePathOp(const Path& path) {
-  if (path.asRect(nullptr)) {
-    return GLFillRectOp::Make();
+static std::unique_ptr<GLDrawOp> MakeSimplePathOp(const Path& path, const Matrix& matrix) {
+  Rect rect = Rect::MakeEmpty();
+  if (path.asRect(&rect)) {
+    return GLFillRectOp::Make(rect, matrix);
   }
   RRect rRect;
   if (path.asRRect(&rRect)) {
@@ -175,7 +177,7 @@ void GLCanvas::fillPath(const Path& path, const Shader* shader) {
   if (clippedLocalQuad.isEmpty()) {
     return;
   }
-  auto op = MakeSimplePathOp(path);
+  auto op = MakeSimplePathOp(path, getViewMatrix());
   if (op) {
     auto localMatrix = Matrix::MakeScale(bounds.width(), bounds.height());
     localMatrix.postTranslate(bounds.x(), bounds.y());
@@ -215,7 +217,7 @@ void GLCanvas::drawMask(Rect quad, const Texture* mask, const Shader* shader) {
   auto args = FPArgs(getContext(), localMatrix);
   save();
   resetMatrix();
-  draw(quad, quad, GLFillRectOp::Make(), shader->asFragmentProcessor(args),
+  draw(quad, quad, GLFillRectOp::Make(quad, getViewMatrix()), shader->asFragmentProcessor(args),
        TextureMaskFragmentProcessor::MakeUseLocalCoord(mask, Matrix::MakeScale(scale.x, scale.y)));
   restore();
 }
@@ -306,8 +308,12 @@ void GLCanvas::drawAtlas(const Texture* atlas, const Matrix matrix[], const Rect
   if (atlas == nullptr || count == 0) {
     return;
   }
-  // TODO(pengweilv): Merge draw call.
   auto totalMatrix = getMatrix();
+  std::vector<Rect> rects;
+  std::vector<Rect> deviceRects;
+  std::vector<Matrix> matrices;
+  std::vector<Matrix> localMatrices;
+  Rect bounds = Rect::MakeEmpty();
   for (size_t i = 0; i < count; ++i) {
     concat(matrix[i]);
     auto width = static_cast<float>(tex[i].width());
@@ -317,26 +323,30 @@ void GLCanvas::drawAtlas(const Texture* atlas, const Matrix matrix[], const Rect
     if (clippedLocalQuad.isEmpty()) {
       continue;
     }
+    bounds.join(clippedLocalQuad);
+    rects.push_back(clippedLocalQuad);
+    deviceRects.push_back(clippedDeviceQuad);
+    matrices.push_back(getViewMatrix());
     auto localMatrix = Matrix::I();
     auto scale = atlas->getTextureCoord(clippedLocalQuad.width(), clippedLocalQuad.height());
     localMatrix.postScale(scale.x, scale.y);
     auto translate = atlas->getTextureCoord(tex[i].x() + clippedLocalQuad.x(),
                                             tex[i].y() + clippedLocalQuad.y());
     localMatrix.postTranslate(translate.x, translate.y);
-    auto args = FPArgs(getContext(),
-                       Matrix::MakeScale(clippedLocalQuad.width(), clippedLocalQuad.height()));
-    std::unique_ptr<FragmentProcessor> colorFP;
-    std::unique_ptr<FragmentProcessor> maskFP;
-    if (colors) {
-      colorFP = Shader::MakeColorShader(colors[i])->asFragmentProcessor(args);
-      maskFP = TextureMaskFragmentProcessor::MakeUseLocalCoord(atlas, localMatrix, false);
-    } else {
-      colorFP = TextureFragmentProcessor::Make(atlas, nullptr, localMatrix);
-    }
-    draw(clippedLocalQuad, clippedDeviceQuad, GLFillRectOp::Make(), std::move(colorFP),
-         std::move(maskFP), false);
+    localMatrices.push_back(localMatrix);
     setMatrix(totalMatrix);
   }
+  auto args = FPArgs(getContext(), Matrix::MakeScale(rects[0].width(), rects[0].height()));
+  std::unique_ptr<FragmentProcessor> colorFP;
+  std::unique_ptr<FragmentProcessor> maskFP;
+  if (colors) {
+    colorFP = Shader::MakeColorShader(colors[0])->asFragmentProcessor(args);
+    maskFP = TextureMaskFragmentProcessor::MakeUseLocalCoord(atlas, Matrix::I(), false);
+  } else {
+    colorFP = TextureFragmentProcessor::Make(atlas, nullptr, Matrix::I());
+  }
+  draw(Rect::MakeEmpty(), Rect::MakeEmpty(), GLFillRectOp::Make(rects, matrices, localMatrices),
+       std::move(colorFP), std::move(maskFP), false);
 }
 
 GLDrawer* GLCanvas::getDrawer() {
@@ -356,7 +366,7 @@ Matrix GLCanvas::getViewMatrix() {
   return matrix;
 }
 
-void GLCanvas::draw(const Rect& localQuad, const Rect& deviceQuad, std::unique_ptr<GLDrawOp> op,
+void GLCanvas::draw(const Rect&, const Rect& deviceQuad, std::unique_ptr<GLDrawOp> op,
                     std::unique_ptr<FragmentProcessor> color,
                     std::unique_ptr<FragmentProcessor> mask, bool aa) {
   auto* drawer = getDrawer();
@@ -392,11 +402,11 @@ void GLCanvas::draw(const Rect& localQuad, const Rect& deviceQuad, std::unique_p
   }
   args.context = surface->getContext();
   args.blendMode = globalPaint.blendMode;
-  args.viewMatrix = getViewMatrix();
+  //  args.viewMatrix = getViewMatrix();
   args.renderTarget = renderTarget.get();
   args.renderTargetTexture = surface->getTexture();
   args.aa = aaType;
-  args.rectToDraw = localQuad;
+  args.rectToDraw = op->bounds();
   drawer->draw(std::move(args), std::move(op));
 }
 }  // namespace tgfx

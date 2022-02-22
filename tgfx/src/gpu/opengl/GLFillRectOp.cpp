@@ -27,42 +27,59 @@ std::unique_ptr<GeometryProcessor> GLFillRectOp::getGeometryProcessor(const Draw
 }
 
 std::vector<float> GLFillRectOp::vertices(const DrawArgs& args) {
-  auto bounds = args.rectToDraw;
+  auto bounds = rects[0];
   auto normalBounds = Rect::MakeLTRB(0, 0, 1, 1);
   // Vertex coordinates are arranged in a 2D pixel coordinate system, and textures are arranged
   // according to a texture coordinate system (0 - 1).
   if (args.aa != AAType::Coverage) {
-    return {
-        bounds.right, bounds.bottom, normalBounds.right, normalBounds.bottom,
-        bounds.right, bounds.top,    normalBounds.right, normalBounds.top,
-        bounds.left,  bounds.bottom, normalBounds.left,  normalBounds.bottom,
-        bounds.left,  bounds.top,    normalBounds.left,  normalBounds.top,
-    };
+    std::vector<float> vertexes;
+    for (size_t i = 0; i < rects.size(); ++i) {
+      auto quad = Quad::MakeFromRect(rects[i], matrices[i]);
+      auto localQuad = Quad::MakeFromRect(normalBounds, localMatrices[i]);
+      std::vector<float> vert = {
+          quad.point(3).x, quad.point(3).y, localQuad.point(3).x, localQuad.point(3).y,
+          quad.point(2).x, quad.point(2).y, localQuad.point(2).x, localQuad.point(2).y,
+          quad.point(1).x, quad.point(1).y, localQuad.point(1).x, localQuad.point(1).y,
+          quad.point(2).x, quad.point(2).y, localQuad.point(2).x, localQuad.point(2).y,
+          quad.point(1).x, quad.point(1).y, localQuad.point(1).x, localQuad.point(1).y,
+          quad.point(0).x, quad.point(0).y, localQuad.point(0).x, localQuad.point(0).y,
+      };
+      vertexes.insert(vertexes.end(), vert.begin(), vert.end());
+    }
+    return vertexes;
   }
   auto scale = sqrtf(args.viewMatrix.getScaleX() * args.viewMatrix.getScaleX() +
                      args.viewMatrix.getSkewY() * args.viewMatrix.getSkewY());
   // we want the new edge to be .5px away from the old line.
   auto padding = 0.5f / scale;
   auto insetBounds = bounds.makeInset(padding, padding);
+  auto insetQuad = Quad::MakeFromRect(insetBounds, matrices[0]);
   auto outsetBounds = bounds.makeOutset(padding, padding);
+  auto outsetQuad = Quad::MakeFromRect(outsetBounds, matrices[0]);
 
   auto normalPadding = Point::Make(padding / bounds.width(), padding / bounds.height());
   auto normalInset = normalBounds.makeInset(normalPadding.x, normalPadding.y);
   auto normalOutset = normalBounds.makeOutset(normalPadding.x, normalPadding.y);
   return {
-      insetBounds.left,   insetBounds.top,     1.0f, normalInset.left,   normalInset.top,
-      insetBounds.left,   insetBounds.bottom,  1.0f, normalInset.left,   normalInset.bottom,
-      insetBounds.right,  insetBounds.top,     1.0f, normalInset.right,  normalInset.top,
-      insetBounds.right,  insetBounds.bottom,  1.0f, normalInset.right,  normalInset.bottom,
-      outsetBounds.left,  outsetBounds.top,    0.0f, normalOutset.left,  normalOutset.top,
-      outsetBounds.left,  outsetBounds.bottom, 0.0f, normalOutset.left,  normalOutset.bottom,
-      outsetBounds.right, outsetBounds.top,    0.0f, normalOutset.right, normalOutset.top,
-      outsetBounds.right, outsetBounds.bottom, 0.0f, normalOutset.right, normalOutset.bottom,
+      insetQuad.point(0).x,  insetQuad.point(0).y,  1.0f, normalInset.left,   normalInset.top,
+      insetQuad.point(1).x,  insetQuad.point(1).y,  1.0f, normalInset.left,   normalInset.bottom,
+      insetQuad.point(2).x,  insetQuad.point(2).y,  1.0f, normalInset.right,  normalInset.top,
+      insetQuad.point(3).x,  insetQuad.point(3).y,  1.0f, normalInset.right,  normalInset.bottom,
+      outsetQuad.point(0).x, outsetQuad.point(0).y, 0.0f, normalOutset.left,  normalOutset.top,
+      outsetQuad.point(1).x, outsetQuad.point(1).y, 0.0f, normalOutset.left,  normalOutset.bottom,
+      outsetQuad.point(2).x, outsetQuad.point(2).y, 0.0f, normalOutset.right, normalOutset.top,
+      outsetQuad.point(3).x, outsetQuad.point(3).y, 0.0f, normalOutset.right, normalOutset.bottom,
   };
 }
 
-std::unique_ptr<GLFillRectOp> GLFillRectOp::Make() {
-  return std::make_unique<GLFillRectOp>();
+std::unique_ptr<GLFillRectOp> GLFillRectOp::Make(const Rect& rect, const Matrix& matrix) {
+  return std::unique_ptr<GLFillRectOp>(new GLFillRectOp({rect}, {matrix}, {Matrix::I()}));
+}
+
+std::unique_ptr<GLFillRectOp> GLFillRectOp::Make(const std::vector<Rect>& rects,
+                                                 const std::vector<Matrix>& matrices,
+                                                 const std::vector<Matrix>& localMatrices) {
+  return std::unique_ptr<GLFillRectOp>(new GLFillRectOp(rects, matrices, localMatrices));
 }
 
 static constexpr size_t kIndicesPerAAFillRect = 30;
