@@ -41,14 +41,11 @@ void GLCanvas::drawTexture(const Texture* texture, const Texture* mask, bool inv
   drawTexture(texture, nullptr, mask, inverted);
 }
 
-Surface* GLCanvas::getClipSurface() {
-  if (_clipSurface == nullptr) {
-    _clipSurface = Surface::Make(getContext(), surface->width(), surface->height(), true);
-    if (_clipSurface == nullptr) {
-      _clipSurface = Surface::Make(getContext(), surface->width(), surface->height());
-    }
+Mask* GLCanvas::getClipMask() {
+  if (_clipMask == nullptr) {
+    _clipMask = Mask::Make(surface->width(), surface->height());
   }
-  return _clipSurface.get();
+  return _clipMask.get();
 }
 
 static constexpr float BOUNDS_TO_LERANCE = 1e-3f;
@@ -78,13 +75,13 @@ std::unique_ptr<FragmentProcessor> GLCanvas::getClipMask(const Rect& deviceQuad,
         scissorRect->round();
       }
     } else {
-      auto clipSurface = getClipSurface();
-      auto clipCanvas = clipSurface->getCanvas();
-      clipCanvas->clear();
-      Paint paint = {};
-      paint.setColor(Color::Black());
-      clipCanvas->drawPath(globalPaint.clip, paint);
-      return TextureMaskFragmentProcessor::MakeUseDeviceCoord(clipSurface->getTexture().get(),
+      auto mask = getClipMask();
+      if (mask == nullptr) {
+        return nullptr;
+      }
+      mask->clear();
+      mask->fillPath(globalPaint.clip);
+      return TextureMaskFragmentProcessor::MakeUseDeviceCoord(mask->makeTexture(getContext()).get(),
                                                               surface->origin());
     }
   }

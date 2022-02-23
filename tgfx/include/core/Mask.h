@@ -52,6 +52,8 @@ class Mask : public TextureBuffer {
     matrix = m;
   }
 
+  virtual void clear() = 0;
+
   /**
    * Adds the fills of the given path to this mask，with its top-left corner at (0, 0), using
    * current Matrix.

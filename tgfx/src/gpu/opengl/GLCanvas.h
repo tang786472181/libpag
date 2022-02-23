@@ -48,12 +48,12 @@ class GLCanvas : public Canvas {
   }
 
  private:
-  std::shared_ptr<Surface> _clipSurface = nullptr;
+  std::shared_ptr<Mask> _clipMask = nullptr;
   std::shared_ptr<GLDrawer> _drawer = nullptr;
 
   GLDrawer* getDrawer();
 
-  Surface* getClipSurface();
+  Mask* getClipMask();
 
   Matrix getViewMatrix();
 

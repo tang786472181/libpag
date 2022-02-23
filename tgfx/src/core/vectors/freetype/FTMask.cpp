@@ -61,6 +61,20 @@ FTMask::FTMask(std::shared_ptr<PixelBuffer> buffer)
     : Mask(buffer->width(), buffer->height()), buffer(std::move(buffer)) {
 }
 
+void FTMask::clear() {
+  auto pixels = buffer->lockPixels();
+  if (buffer->info().rowBytes() == buffer->info().minRowBytes()) {
+    memset(pixels, 0, buffer->byteSize());
+  } else {
+    auto rowCount = buffer->info().height();
+    auto trimRowBytes = buffer->info().width() * buffer->info().bytesPerPixel();
+    for (int i = 0; i < rowCount; i++) {
+      memset(pixels, 0, trimRowBytes);
+    }
+  }
+  buffer->unlockPixels();
+}
+
 void FTMask::fillPath(const Path& path) {
   if (path.isEmpty()) {
     return;

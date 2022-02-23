@@ -26,6 +26,8 @@ class FTMask : public Mask {
  public:
   explicit FTMask(std::shared_ptr<PixelBuffer> buffer);
 
+  void clear() override;
+
   void fillPath(const Path& path) override;
 
   std::shared_ptr<Texture> makeTexture(Context* context) const override {
